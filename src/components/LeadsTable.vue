@@ -1,14 +1,14 @@
 <template>
-  <a-table :columns="columns" :data-source="data" bordered :pagination="false">
+  <a-table :loading="loading" :columns="columns" :data-source="data" bordered :pagination="false">
     <template #title >
        <h2>Тестовое задание</h2>
        <a-input-search
          v-model:value="searchQuery"
          placeholder="Search..."
          style="width: 200px"
-         @search="onSearch"
       />
       </template>
+      
     <template #expandedRowRender="{ record }">
       <h4>Контакты:</h4>
       <div v-for="contact in record.contacts" :key="contact.id">
@@ -63,7 +63,9 @@ export default {
     return {
       data: [],
       columns,
-      searchQuery: ''
+      debounceTimer: null,
+      searchQuery: '',
+      loading: false
     };
   },
   props: {
@@ -74,25 +76,35 @@ export default {
   },
   methods: {
     fetchData() {
+      this.loading = true;
       const leadsUrl = 'https://amo-back-end-682e41383993.herokuapp.com/leads';
       fetch(`${leadsUrl}?query=${this.searchQuery}`)
         .then(response => response.json())
         .then(data => {
           this.data = data?.map(lead => ({
-            key: lead.name,
             ...lead,
+            key: lead.name,
             responsible: `${lead.responsible.name} (${lead.responsible.email})`,
             createdAt: new Date(lead.createdAt).toLocaleDateString(),
           })) || [];
         })
         .catch(error => {
           alert(`Failed to fetch leads: ${error}`);
+        })
+        .finally(()=>{
+          this.loading = false;
         });
     },
   },
+
   watch: {
     searchQuery() {
-      this.fetchData();
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer); 
+      }
+      this.debounceTimer = setTimeout(() => {
+        this.fetchData(); 
+      }, 500); 
     }
   }
 }
